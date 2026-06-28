@@ -1,0 +1,52 @@
+/* Layout components styling */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  background-color: var(--white);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.logo:hover {
+  opacity: 0.8;
+}
+
+.logo svg {
+  color: var(--primary-color);
+}
+
+.footer {
+  text-align: center;
+  padding: 24px;
+  background-color: var(--white);
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: auto;
+  border-top: 1px solid var(--border-color);
+}

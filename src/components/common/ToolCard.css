@@ -1,0 +1,61 @@
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 24px;
+  background-color: var(--white);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text-dark);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  height: 100%;
+}
+
+.tool-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+}
+
+.tool-card.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  filter: grayscale(100%);
+}
+
+.tool-icon {
+  color: var(--primary-color);
+  margin-bottom: 16px;
+  transition: transform 0.3s ease;
+}
+
+.tool-card:hover .tool-icon {
+  transform: scale(1.1);
+}
+
+.tool-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.tool-description {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.tool-badge {
+  margin-top: 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  background-color: #f0f0f0;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
