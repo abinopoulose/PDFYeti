@@ -1,0 +1,83 @@
+.merge-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.upload-container.compact {
+  padding: 24px;
+  min-height: auto;
+  margin-bottom: 32px;
+  flex-direction: row;
+  gap: 16px;
+  justify-content: center;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+  width: 100%;
+}
+
+.file-list-item {
+  display: flex;
+  align-items: center;
+  background-color: var(--surface-color);
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  gap: 16px;
+  width: 100%;
+}
+
+.file-order-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.order-btn:hover:not(:disabled) {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.order-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.file-remove-list {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-remove-list:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}

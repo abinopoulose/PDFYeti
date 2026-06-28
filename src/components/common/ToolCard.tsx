@@ -20,7 +20,9 @@ export const ToolCard: React.FC<ToolCardProps> = ({
   if (disabled) {
     return (
       <div className="tool-card disabled">
-        <Icon size={48} className="tool-icon" />
+        <div className="tool-icon-wrapper">
+          <Icon size={32} className="tool-icon" />
+        </div>
         <h3 className="tool-title">{title}</h3>
         <p className="tool-description">{description}</p>
         <span className="tool-badge">Coming Soon</span>
@@ -30,7 +32,9 @@ export const ToolCard: React.FC<ToolCardProps> = ({
 
   return (
     <Link to={path} className="tool-card">
-      <Icon size={48} className="tool-icon" />
+      <div className="tool-icon-wrapper">
+        <Icon size={32} className="tool-icon" />
+      </div>
       <h3 className="tool-title">{title}</h3>
       <p className="tool-description">{description}</p>
     </Link>

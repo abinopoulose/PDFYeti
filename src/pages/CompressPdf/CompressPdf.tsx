@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileDown, UploadCloud, X, CheckCircle, FileText, ArrowRight, Settings, StopCircle } from 'lucide-react';
+import { FileDown, UploadCloud, X, CheckCircle, FileText, ArrowRight, Settings } from 'lucide-react';
 import { formatBytes } from '../../utils/formatters';
 import { compressPdfDocument, type CompressionLevel, type CompressionOptions } from '../../utils/pdfProcessor';
 import './CompressPdf.css';
@@ -7,58 +7,101 @@ import './CompressPdf.css';
 export const CompressPdf: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressedPdfUrl, setCompressedPdfUrl] = useState<string | null>(null);
   const [originalSize, setOriginalSize] = useState<number>(0);
+  const [analyzingPage, setAnalyzingPage] = useState<number>(0);
+  const [totalAnalyzePages, setTotalAnalyzePages] = useState<number>(0);
   const [compressedSize, setCompressedSize] = useState<number>(0);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
   // Compression Options State
   const [level, setLevel] = useState<CompressionLevel>('lossless');
-  const [targetSize, setTargetSize] = useState<string>('');
-  const [targetUnit, setTargetUnit] = useState<'KB' | 'MB' | 'GB'>('MB');
-  const [runForEternity, setRunForEternity] = useState<boolean>(false);
-  const [validationError, setValidationError] = useState<string>('');
-  const [activeTargetBytes, setActiveTargetBytes] = useState<number>(0);
-  const [elapsedTime, setElapsedTime] = useState<number>(0);
 
-  // Advance Mode Progress State
-  const [attemptCount, setAttemptCount] = useState<number>(0);
-  const [currentBestSize, setCurrentBestSize] = useState<number>(0);
-  const [currentAttemptSize, setCurrentAttemptSize] = useState<number>(0);
-  const shouldStopRef = useRef<boolean>(false);
+  // Advanced Options State
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [contentType, setContentType] = useState<"Text/Vectors" | "Color Images" | "Scanned B&W Documents">("Color Images");
+  const [algorithm, setAlgorithm] = useState<string>("JPEG");
+  const [aggressiveness, setAggressiveness] = useState<number>(50);
+  const [actualFinalSize, setActualFinalSize] = useState<number | null>(null);
 
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const currentRunRef = useRef<{ stop: boolean }>({ stop: false });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (file) {
-      if (file.size >= 1024 * 1024 * 1024) {
-        setTargetUnit('GB');
-      } else if (file.size >= 1024 * 1024) {
-        setTargetUnit('MB');
-      } else {
-        setTargetUnit('KB');
+    return () => {
+      currentRunRef.current.stop = true;
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    };
+  }, []);
+
+  const triggerEstimation = (ct: string, alg: string, agg: number) => {
+    if (!file) return;
+    
+    setIsCompressing(true);
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    
+    debounceTimeout.current = setTimeout(async () => {
+      // Cancel any ongoing background compression pass
+      currentRunRef.current.stop = true;
+      const myRun = { stop: false };
+      currentRunRef.current = myRun;
+
+      try {
+        // Calculate a target size based on aggressiveness (1 to 100)
+        // 1 = Original size, 100 = 1024 bytes (1 KB)
+        const targetSize = Math.floor(file.size - ((agg - 1) / 99) * (file.size - 1024));
+
+        const options: CompressionOptions = {
+          level: 'advance',
+          targetSizeBytes: targetSize,
+          forceRasterize: ct === 'Text/Vectors' || ct === 'Scanned B&W Documents' || agg > 75,
+          dpi: Math.max(10, 144 - agg),
+          shouldStop: () => myRun.stop
+        };
+
+        const { newSize } = await compressPdfDocument(file, options);
+
+        if (!myRun.stop) {
+          setActualFinalSize(newSize);
+          setIsCompressing(false);
+        }
+      } catch (error) {
+        console.error('Background compression failed:', error);
+        if (!myRun.stop) {
+          setIsCompressing(false);
+        }
       }
-      setTargetSize('');
-      setValidationError('');
-    }
-  }, [file]);
+    }, 500);
+  };
 
-  useEffect(() => {
-    let interval: any;
-    if (isCompressing && level === 'advance') {
-      interval = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
-      }, 1000);
-    } else {
-      setElapsedTime(0);
-    }
-    return () => clearInterval(interval);
-  }, [isCompressing, level]);
+  const handleContentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as any;
+    setContentType(newType);
+    
+    let newAlgorithm = "JPEG";
+    if (newType === "Text/Vectors") newAlgorithm = "Flate";
+    else if (newType === "Color Images") newAlgorithm = "JPEG";
+    else if (newType === "Scanned B&W Documents") newAlgorithm = "JBIG2";
+    
+    setAlgorithm(newAlgorithm);
+    triggerEstimation(newType, newAlgorithm, aggressiveness);
+  };
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+  const getAlgorithmOptions = () => {
+    switch (contentType) {
+      case "Text/Vectors": return ["Flate", "LZW"];
+      case "Color Images": return ["JPEG", "JPEG2000"];
+      case "Scanned B&W Documents": return ["JBIG2", "CCITT Group 4"];
+      default: return [];
+    }
+  };
+
+  const initFileState = (newFile: File) => {
+    setFile(newFile);
+    setOriginalSize(newFile.size);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -78,8 +121,7 @@ export const CompressPdf: React.FC = () => {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
       if (droppedFile.type === 'application/pdf') {
-        setFile(droppedFile);
-        setOriginalSize(droppedFile.size);
+        initFileState(droppedFile);
       } else {
         alert('Please drop a PDF file.');
       }
@@ -90,8 +132,7 @@ export const CompressPdf: React.FC = () => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
       if (selectedFile.type === 'application/pdf') {
-        setFile(selectedFile);
-        setOriginalSize(selectedFile.size);
+        initFileState(selectedFile);
       } else {
         alert('Please select a PDF file.');
       }
@@ -100,98 +141,69 @@ export const CompressPdf: React.FC = () => {
 
   const handleCompress = async () => {
     if (!file) return;
-    setValidationError('');
     
-    let targetSizeBytes: number | undefined;
+    setIsProcessingPdf(true);
+    setAnalyzingPage(0);
+    setTotalAnalyzePages(0);
+    setWarningMessage(null);
 
-    if (level === 'advance') {
-      const parsedTargetSize = parseFloat(targetSize);
-      if (isNaN(parsedTargetSize) || parsedTargetSize <= 0) {
-        setValidationError("Please enter a valid target size.");
-        return;
+    const targetSize = Math.floor(file.size - ((aggressiveness - 1) / 99) * (file.size - 1024));
+
+    const options: CompressionOptions = showAdvanced ? {
+      level: 'advance',
+      targetSizeBytes: targetSize,
+      forceRasterize: contentType === 'Text/Vectors' || contentType === 'Scanned B&W Documents' || aggressiveness > 75,
+      dpi: Math.max(10, 144 - aggressiveness),
+      onAnalyzeProgress: (current, total) => {
+        setAnalyzingPage(current);
+        setTotalAnalyzePages(total);
       }
-      
-      let multiplier = 1;
-      if (targetUnit === 'KB') multiplier = 1024;
-      if (targetUnit === 'MB') multiplier = 1024 * 1024;
-      if (targetUnit === 'GB') multiplier = 1024 * 1024 * 1024;
-      
-      targetSizeBytes = parsedTargetSize * multiplier;
-
-      if (targetSizeBytes >= file.size) {
-        setValidationError("Target size must be strictly less than the original file size.");
-        return;
-      }
-      
-      if (targetSizeBytes <= 1024) {
-        setValidationError("Target size must be larger than 1 KB.");
-        return;
-      }
-      
-      setActiveTargetBytes(targetSizeBytes);
-    }
-
-    setIsCompressing(true);
-    shouldStopRef.current = false;
-    setAttemptCount(0);
-    setCurrentBestSize(0);
-    setCurrentAttemptSize(0);
-
-    const options: CompressionOptions = {
+    } : {
       level,
-      targetSizeBytes,
-      runForEternity,
-      onProgress: (attempt, bestSize, currentSize) => {
-        setAttemptCount(attempt);
-        setCurrentBestSize(bestSize);
-        setCurrentAttemptSize(currentSize);
-      },
-      shouldStop: () => shouldStopRef.current
+      onAnalyzeProgress: (current, total) => {
+        setAnalyzingPage(current);
+        setTotalAnalyzePages(total);
+      }
     };
 
     try {
-      const { url, newSize } = await compressPdfDocument(file, options);
+      const { url, newSize, warning } = await compressPdfDocument(file, options);
+      if (warning) setWarningMessage(warning);
       setCompressedSize(newSize);
       setCompressedPdfUrl(url);
     } catch (error) {
       console.error('Error compressing PDF:', error);
       alert('Failed to compress PDF. Please try another file.');
     } finally {
-      setIsCompressing(false);
+      setIsProcessingPdf(false);
     }
   };
 
-  const handleStop = () => {
-    shouldStopRef.current = true;
-  };
-
   const handleReset = () => {
+    currentRunRef.current.stop = true;
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    
     setFile(null);
     setCompressedPdfUrl(null);
     setOriginalSize(0);
     setCompressedSize(0);
     setLevel('lossless');
-    setRunForEternity(false);
-    setValidationError('');
-    setAttemptCount(0);
-    setCurrentBestSize(0);
-    setCurrentAttemptSize(0);
-    setElapsedTime(0);
+    setAnalyzingPage(0);
+    setTotalAnalyzePages(0);
+    setWarningMessage(null);
+    setShowAdvanced(false);
+    setContentType("Color Images");
+    setAlgorithm("JPEG");
+    setAggressiveness(50);
+    setActualFinalSize(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const availableUnits: ('KB' | 'MB' | 'GB')[] = [];
-  if (file) {
-    if (file.size >= 1024 * 1024 * 1024) availableUnits.push('GB', 'MB', 'KB');
-    else if (file.size >= 1024 * 1024) availableUnits.push('MB', 'KB');
-    else availableUnits.push('KB');
-  }
-
   return (
     <div className="compress-page">
-      {!file && !isCompressing && !compressedPdfUrl && (
+      {!file && !isProcessingPdf && !compressedPdfUrl && (
         <>
           <div className="hero-section">
             <h1 className="hero-title">Compress PDF file</h1>
@@ -223,7 +235,7 @@ export const CompressPdf: React.FC = () => {
         </>
       )}
 
-      {file && !isCompressing && !compressedPdfUrl && (
+      {file && !isProcessingPdf && !compressedPdfUrl && (
         <div className="workspace">
           <div className="file-card">
             <button className="file-remove" onClick={handleReset} title="Remove file">
@@ -288,58 +300,87 @@ export const CompressPdf: React.FC = () => {
                 />
                 <span className="radio-text">Low (Lower quality, high compression)</span>
               </label>
-
-              <label className="radio-label">
-                <input 
-                  type="radio" 
-                  name="level" 
-                  value="advance" 
-                  checked={level === 'advance'} 
-                  onChange={() => setLevel('advance')} 
-                />
-                <span className="radio-text">Advance (Exact Max Target Size)</span>
-              </label>
             </div>
 
-            {level === 'advance' && (
-              <div className="advance-settings">
-                <div className="target-size-group">
-                  <label>Absolute Max Target Size:</label>
-                  <div className="target-input-row">
-                    <input 
-                      type="number" 
-                      min="0.002"
-                      step="0.1"
-                      value={targetSize} 
-                      onChange={(e) => setTargetSize(e.target.value)}
-                      className="target-input"
-                    />
-                    <select 
-                      className="unit-select"
-                      value={targetUnit}
-                      onChange={(e) => setTargetUnit(e.target.value as any)}
-                    >
-                      {availableUnits.map(unit => (
-                        <option key={unit} value={unit}>{unit}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <small className="help-text">We will run multiple compression passes to get as close as possible to this strict maximum size limit without exceeding it.</small>
-                  {validationError && (
-                    <div className="validation-error">
-                      {validationError}
+            {/* Advanced Options Toggle */}
+            <div className="advanced-toggle" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
+              </button>
+            </div>
+
+            {/* Advanced Options Content */}
+            {showAdvanced && (
+              <div className="advanced-options-content" style={{ marginTop: '20px', padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <h4 style={{ marginBottom: '16px', color: 'var(--text-color)' }}>Advanced Settings</h4>
+                
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, color: 'var(--text-color)' }}>Content Type</label>
+                  <select 
+                    value={contentType} 
+                    onChange={handleContentTypeChange}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}
+                  >
+                    <option value="Text/Vectors">Text/Vectors</option>
+                    <option value="Color Images">Color Images</option>
+                    <option value="Scanned B&W Documents">Scanned B&W Documents</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, color: 'var(--text-color)' }}>Algorithm</label>
+                  <select 
+                    value={algorithm} 
+                    onChange={(e) => {
+                      setAlgorithm(e.target.value);
+                      triggerEstimation(contentType, e.target.value, aggressiveness);
+                    }}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}
+                  >
+                    {getAlgorithmOptions().map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontWeight: 500, color: 'var(--text-color)' }}>
+                    <span>Aggressiveness</span>
+                    <span style={{ color: 'var(--primary-color)' }}>{aggressiveness}</span>
+                  </label>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    value={aggressiveness}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setAggressiveness(val);
+                      triggerEstimation(contentType, algorithm, val);
+                    }}
+                    style={{ width: '100%', cursor: 'pointer' }}
+                  />
+                </div>
+
+                <div className="estimation-result" style={{ padding: '16px', background: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60px' }}>
+                  {isCompressing ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--primary-color)' }}>
+                      <div className="spinner" style={{ width: '20px', height: '20px', borderWidth: '2px' }}></div>
+                      <span style={{ fontWeight: 500 }}>Calculating exact size...</span>
+                    </div>
+                  ) : actualFinalSize !== null ? (
+                    <div style={{ fontWeight: 500, color: 'var(--text-color)' }}>
+                      Actual Final Size: <span style={{ color: 'var(--primary-color)', fontSize: '1.1em', marginLeft: '8px' }}>{formatBytes(actualFinalSize)}</span>
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      Adjust settings to calculate exact size.
                     </div>
                   )}
                 </div>
-                
-                <label className="checkbox-label" style={{ marginTop: '16px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={runForEternity} 
-                    onChange={(e) => setRunForEternity(e.target.checked)} 
-                  />
-                  <span className="checkbox-text" style={{ fontSize: '14px' }}>Run for eternity (Infinite search loop until you manually stop)</span>
-                </label>
               </div>
             )}
           </div>
@@ -353,72 +394,15 @@ export const CompressPdf: React.FC = () => {
         </div>
       )}
 
-      {isCompressing && (
+      {isProcessingPdf && (
         <div className="loading-container">
           <div className="spinner"></div>
-          <div className="loading-text">Compressing PDF...</div>
-          
-          {level === 'advance' ? (
-            <div className="progress-details">
-              <div className="progress-stats">
-                <div className="progress-stat">
-                  <span>Time Elapsed:</span>
-                  <strong>{formatTime(elapsedTime)}</strong>
-                </div>
-                <div className="progress-stat">
-                  <span>Compression Passes:</span>
-                  <strong>{attemptCount}</strong>
-                </div>
-                <div className="progress-stat">
-                  <span>Current Best Size:</span>
-                  <strong style={{ color: 'var(--success-color)' }}>
-                    {currentBestSize > 0 ? formatBytes(currentBestSize) : 'Calculating...'}
-                  </strong>
-                </div>
-                <div className="progress-stat">
-                  <span>Latest Attempt:</span>
-                  <strong>{currentAttemptSize > 0 ? formatBytes(currentAttemptSize) : 'Calculating...'}</strong>
-                </div>
-              </div>
-
-              <div className="size-bar-container">
-                <div className="size-bar-track">
-                  <div 
-                    className="size-bar-target-marker" 
-                    style={{ left: `${Math.min(100, (activeTargetBytes / file!.size) * 100)}%` }}
-                  ></div>
-                  <div 
-                    className="size-bar-best-arrow" 
-                    style={{ 
-                      left: `${currentBestSize ? Math.min(100, (currentBestSize / file!.size) * 100) : 100}%`,
-                      opacity: currentBestSize ? 1 : 0 
-                    }}
-                  >
-                    ▼
-                  </div>
-                </div>
-                <div className="size-bar-labels">
-                  <span className="label-zero">0 KB</span>
-                  <span 
-                    className="label-target" 
-                    style={{ left: `${Math.min(100, (activeTargetBytes / file!.size) * 100)}%` }}
-                  >
-                    Target: {formatBytes(activeTargetBytes)}
-                  </span>
-                  <span className="label-original">Original: {formatBytes(file!.size)}</span>
-                </div>
-              </div>
-
-              <p className="progress-help">Finding the perfect compression ratio...</p>
-              
-              <button className="btn-stop" onClick={handleStop}>
-                <StopCircle size={18} />
-                Stop & Download Best Available
-              </button>
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>Working entirely offline in your browser.</p>
-          )}
+          <h2 className="loading-text">
+            {totalAnalyzePages > 0 && analyzingPage < totalAnalyzePages
+              ? `Analyzing page ${analyzingPage} of ${totalAnalyzePages}...`
+              : 'Compressing PDF...'}
+          </h2>
+          <p style={{ color: 'var(--text-muted)' }}>Working entirely offline in your browser.</p>
         </div>
       )}
 
@@ -428,6 +412,12 @@ export const CompressPdf: React.FC = () => {
             <CheckCircle size={48} />
           </div>
           <h2 className="success-title">PDF has been compressed!</h2>
+          
+          {warningMessage && (
+            <div className="warning-banner" style={{ background: '#fef3c7', color: '#92400e', padding: '16px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #fcd34d', fontSize: '14px', lineHeight: '1.5' }}>
+              {warningMessage}
+            </div>
+          )}
           
           <div className="stats-container">
             <div className="stat-box">

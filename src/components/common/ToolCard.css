@@ -1,60 +1,90 @@
 .tool-card {
+  background: var(--surface-color);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 32px 24px;
-  background-color: var(--white);
-  border-radius: 12px;
+  align-items: flex-start;
   text-decoration: none;
-  color: var(--text-dark);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: var(--shadow-sm);
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
   height: 100%;
 }
 
-.tool-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary-color);
+.tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
-.tool-card.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-  filter: grayscale(100%);
+.tool-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.tool-card:hover::before {
+  opacity: 1;
+}
+
+.tool-icon-wrapper {
+  background: var(--primary-light);
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tool-icon {
   color: var(--primary-color);
-  margin-bottom: 16px;
-  transition: transform 0.3s ease;
 }
 
-.tool-card:hover .tool-icon {
-  transform: scale(1.1);
+.tool-card:hover .tool-icon-wrapper {
+  transform: scale(1.1) rotate(5deg);
+  background: #dbeafe;
 }
 
 .tool-title {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 8px;
-  text-align: center;
+  color: var(--text-dark);
+  margin-bottom: 12px;
+  font-family: 'Outfit', sans-serif;
 }
 
 .tool-description {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
-  text-align: center;
-  line-height: 1.4;
+  line-height: 1.6;
+}
+
+.tool-card.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(100%);
 }
 
 .tool-badge {
-  margin-top: 12px;
+  margin-top: 16px;
   font-size: 11px;
   text-transform: uppercase;
   font-weight: 700;
-  background-color: #f0f0f0;
+  background-color: var(--border-color);
   color: var(--text-muted);
   padding: 4px 8px;
   border-radius: 4px;

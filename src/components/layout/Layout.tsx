@@ -5,8 +5,10 @@ import { Footer } from './Footer';
 
 export const Layout: React.FC = () => {
   return (
-    <div className="app-container">
-      <Navbar />
+    <div className="layout">
+      <header className="header">
+        <Navbar />
+      </header>
       <main className="main-content">
         <Outlet />
       </main>
