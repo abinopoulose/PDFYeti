@@ -99,7 +99,7 @@ async function downsamplePdfImages(pdfDoc: PDFDocument, quality: number, scale: 
       if (isJpeg) {
         try {
           const imageBytes = pdfObject.contents;
-          const blob = new Blob([imageBytes], { type: 'image/jpeg' });
+          const blob = new Blob([imageBytes as any], { type: 'image/jpeg' });
           const imgUrl = URL.createObjectURL(blob);
           
           const img = new Image();
@@ -127,7 +127,7 @@ async function downsamplePdfImages(pdfDoc: PDFDocument, quality: number, scale: 
               compressedBytes[i] = binaryStr.charCodeAt(i);
             }
             
-            pdfObject.contents = compressedBytes;
+            (pdfObject as any).contents = compressedBytes;
             dict.set(PDFName.of('Length'), context.obj(compressedBytes.length));
             dict.set(PDFName.of('Width'), context.obj(newWidth));
             dict.set(PDFName.of('Height'), context.obj(newHeight));
@@ -478,7 +478,7 @@ export const protectPdfDocument = async (file: File, password: string): Promise<
     algorithm: 'AES-256'
   });
 
-  const blob = new Blob([encryptedBytes], { type: 'application/pdf' });
+  const blob = new Blob([encryptedBytes as any], { type: 'application/pdf' });
   return { url: URL.createObjectURL(blob), size: blob.size };
 };
 
@@ -504,7 +504,7 @@ export const unlockPdfDocument = async (file: File, password: string): Promise<{
     const pdfDoc = await PDFDocument.load(arrayBuffer, { 
       password: password,
       ignoreEncryption: false 
-    });
+    } as any);
     
     // Save it (this strips encryption)
     const pdfBytes = await pdfDoc.save();

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, X, CheckCircle, FileText, ArrowRight, Split, Download } from 'lucide-react';
 import { formatBytes } from '../../utils/formatters';
-import { splitPdfDocument, getPdfInfo, parseRanges, type SplitResult } from '../../utils/pdfProcessor';
+import { splitPdfDocument, getPdfInfo, parseRanges, type SplitResult, type SplitRange } from '../../utils/pdfProcessor';
 import './SplitPdf.css';
 
 export const SplitPdf: React.FC = () => {
@@ -68,7 +68,7 @@ export const SplitPdf: React.FC = () => {
     if (!file) return;
     setValidationError('');
 
-    let ranges = [];
+    let ranges: SplitRange[] = [];
     if (splitMode === 'custom') {
       ranges = parseRanges(rangeInput, numPages);
       if (ranges.length === 0) {

@@ -37,7 +37,7 @@ export const CompressPdf: React.FC = () => {
     };
   }, []);
 
-  const triggerEstimation = (ct: string, alg: string, agg: number) => {
+  const triggerEstimation = (ct: string, _alg: string, agg: number) => {
     if (!file) return;
     
     setIsCompressing(true);
