@@ -51,8 +51,7 @@ async function rasterizePdf(
 
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-
-    await page.render({ canvasContext: context, viewport }).promise;
+    await page.render({ canvasContext: context, viewport, canvas } as any).promise;
 
     const imgData = canvas.toDataURL('image/jpeg', quality);
     doc!.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
@@ -71,7 +70,7 @@ export const compressPdfDocument = async (
   if (options.level === 'lossless') {
     const pdfDoc = await PDFDocument.load(arrayBuffer);
     const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
     return { url: URL.createObjectURL(blob), newSize: blob.size };
   }
 

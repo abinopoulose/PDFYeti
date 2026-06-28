@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FileDown, UploadCloud, X, CheckCircle, FileText, ArrowRight, Settings, StopCircle } from 'lucide-react';
 import { formatBytes } from '../../utils/formatters';
 import { compressPdfDocument, type CompressionLevel, type CompressionOptions } from '../../utils/pdfProcessor';
@@ -385,12 +385,12 @@ export const CompressPdf: React.FC = () => {
                 <div className="size-bar-track">
                   <div 
                     className="size-bar-target-marker" 
-                    style={{ left: `${Math.min(100, (activeTargetBytes / file.size) * 100)}%` }}
+                    style={{ left: `${Math.min(100, (activeTargetBytes / file!.size) * 100)}%` }}
                   ></div>
                   <div 
                     className="size-bar-best-arrow" 
                     style={{ 
-                      left: `${currentBestSize ? Math.min(100, (currentBestSize / file.size) * 100) : 100}%`,
+                      left: `${currentBestSize ? Math.min(100, (currentBestSize / file!.size) * 100) : 100}%`,
                       opacity: currentBestSize ? 1 : 0 
                     }}
                   >
@@ -401,11 +401,11 @@ export const CompressPdf: React.FC = () => {
                   <span className="label-zero">0 KB</span>
                   <span 
                     className="label-target" 
-                    style={{ left: `${Math.min(100, (activeTargetBytes / file.size) * 100)}%` }}
+                    style={{ left: `${Math.min(100, (activeTargetBytes / file!.size) * 100)}%` }}
                   >
                     Target: {formatBytes(activeTargetBytes)}
                   </span>
-                  <span className="label-original">Original: {formatBytes(file.size)}</span>
+                  <span className="label-original">Original: {formatBytes(file!.size)}</span>
                 </div>
               </div>
 
